@@ -117,7 +117,7 @@ class AttentionUNet(nn.Module):
         self.dec2Gate = AttentionGate(128, 256)
         self.dec1Gate = AttentionGate(64, 128)
 
-        self.decBlock3 = conv_block(512, 256, 3) #The in_channels size is double because they are concatenated along the channels dimension
+        self.decBlock3 = conv_block(512, 256, 3) #The concatenation along the channel dim makes the channel size double in the upsampling
         self.decBlock2 = conv_block(256, 128, 3)
         self.decBlock1 = conv_block(128, 3, 3)
 
@@ -126,8 +126,6 @@ class AttentionUNet(nn.Module):
         self.upconv1 = nn.ConvTranspose2d(in_channels=128, out_channels=64, kernel_size=2, stride=2)
 
     def forward(self, x):
-        #(batch_size, 3, 256, 256)
-
         #downsampling
         enc1 = self.encBlock1(x)
         enc1_pooled = nn.MaxPool2d(kernel_size=2, stride=2)(enc1)
@@ -137,7 +135,7 @@ class AttentionUNet(nn.Module):
         enc3_pooled = nn.MaxPool2d(kernel_size=2, stride=2)(enc3)
 
         #low dimensional latent space
-        latent_dim = self.latentDimBlock(enc3_pooled) #(32, 256, 256)
+        latent_dim = self.latentDimBlock(enc3_pooled) 
 
         #upsampling with gated attention
         dec3_gated = self.dec3Gate(enc3, latent_dim)
@@ -148,10 +146,8 @@ class AttentionUNet(nn.Module):
         enc2_gated = self.dec2Gate(enc2, dec3)
         dec3_upsampled = self.upconv2(dec3)
         concatenation = torch.concat((dec3_upsampled, enc2_gated), dim=1)
-        dec2 = self.decBlock2(concatenation) #(128, 128, 128)
+        dec2 = self.decBlock2(concatenation) 
 
-
-        #incoming: (64, 256, 256)
         enc1_gated = self.dec1Gate(enc1, dec2)
         dec2_upsampled = self.upconv1(dec2)
         concatenation = torch.concat((dec2_upsampled, enc1_gated), dim=1)
