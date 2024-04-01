@@ -11,24 +11,40 @@ from statistics import mean
 
 device = "cpu"
 
-def cosine_schedule(x_t):
-    """
-        Takes image of time step t as input and adds noise using cosine scheduler
-    """
-    return
-
 def linear_schedule(n_steps, start=0.0001, end=0.02):
     """
         Returns all the beta values indexed by their corresponding timestep
     """
     return torch.linspace(start, end, n_steps)
 
+def cosine_schedule(n_steps):
+    """
+        Takes image of time step t as input and adds noise using cosine scheduler
+        Args:
+            n_steps: T from the paper
+    """
+    s = 0.008
+    schedule = torch.linspace(0, n_steps, n_steps+1)
+    f_t = lambda t: torch.cos((t / n_steps + s) / (1 + s) * (torch.pi / 2))**2
+    alpha_t_cumprod = f_t(schedule) / f_t(torch.tensor([0]))
+    betas = 1 - alpha_t_cumprod[1:] / alpha_t_cumprod[:-1] #shift the alpha values by 1 to calculate the beta values
+    betas = torch.clip(betas, 0.0001, 0.999) #clip the betas to be no larger than 0.999
+    return alpha_t_cumprod, betas
 
-#Can be fixed for time step T
-n_steps = 300 # T
-betas = linear_schedule(n_steps).to(device)
+
+#Linear scheduling
+# n_steps = 300 # T
+# betas = linear_schedule(n_steps).to(device) #the variance of the noise added to the image at each time step
+# alphas = 1 - betas
+# alpha_t_cumprod = torch.cumprod(alphas, axis=0).to(device) #cumulative product of the alpha values for all time steps
+
+#Cosine scheduling
+n_steps = 300
+alpha_t_cumprod, betas = cosine_schedule(n_steps)
+alpha_t_cumprod = alpha_t_cumprod.to(device)
+betas = betas.to(device)
 alphas = 1 - betas
-alpha_t_cumprod = torch.cumprod(alphas, axis=0).to(device) #cumulative product of the alpha values for all time steps
+
 
 def q_step(x_zero, timestep):
     """
@@ -62,7 +78,7 @@ def p_step(diffusion_model, x_t, t):
     
     sample_noise = torch.randn_like(x_prev) #sample from a standard normal distribution
     sample_noise_scaled = sample_noise * torch.sqrt(betas[t]) #scale the noise sample z by an approximate sigma_t term
-    x_prev = x_prev + sample_noise_scaled
+    x_prev = x_prev + sample_noise_scaled #adding a small amount of noise back into the image has a regularizing effect
     return x_prev
 
 
@@ -135,7 +151,7 @@ class ConvBlock(nn.Module):
         self.upsample = upsample
 
         #adapts the embedding dimension to match the number of channels for the conv blocks
-        self.time_embedding_adapter = nn.Linear(in_features=embedding_dim, out_features=output_channels) #IDEA: Add RELU TO THIS
+        self.time_embedding_adapter = nn.Linear(in_features=embedding_dim, out_features=output_channels) 
 
         #up or down sampling
         if not upsample:
@@ -154,8 +170,8 @@ class ConvBlock(nn.Module):
         emb = self.time_embedding_adapter(t_embedding) #adapt embedding dimensions to the number of channels of the conv output
         emb = torch.relu(emb)
         emb = torch.unsqueeze(torch.unsqueeze(emb, -1), -1) #reshape
-        x = x + emb #DEBUG: 4th-downsample: emb has a lot of negatives here and x is very sparse: new x gets a lot of negatives then
-        x = torch.relu(self.bn1(self.conv2(x))) #DEBUG: Clamps all x-values to zero 
+        x = x + emb 
+        x = torch.relu(self.bn2(self.conv2(x)))  
         if self.upsample:
             x = torch.relu(self.bn3(self.rescale(x)))
         return x
@@ -218,7 +234,7 @@ class BasicUNet(nn.Module):
             skip_connections.append(x) 
             x = self.maxpool(x) 
 
-        x = torch.relu(self.bn_middle_1(self.middle_conv1(x))) #IDEA: Add temporal information here?
+        x = torch.relu(self.bn_middle_1(self.middle_conv1(x))) 
         middle_embedding = self.middel_layer_embedder(time_embedding)
         middle_embedding = torch.unsqueeze(torch.unsqueeze(middle_embedding, -1), -1)
         x = x + middle_embedding
@@ -228,7 +244,6 @@ class BasicUNet(nn.Module):
         for idx, upsample_block in enumerate(self.upsample_blocks):
             x = torch.cat((x, skip_connections[-idx - 1]), dim=1)
             x = upsample_block(x, time_embedding)
-
 
         x = self.out_conv(x) #IDEA: Add tanh activation
         return x
@@ -240,20 +255,20 @@ class BasicUNet(nn.Module):
 if __name__ == "__main__":
 
     #load model
-    checkpoint = torch.load("weights/ckpt250e.pth")
+    #checkpoint = torch.load("weights/ckpt250e.pth")
     model = BasicUNet()
     model.to(device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    #model.load_state_dict(checkpoint["model_state_dict"])
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    for state in optimizer.state.values():
-        for k, v in state.items():
-            if isinstance(v, torch.Tensor):
-                state[k] = v.to(device)
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    # for state in optimizer.state.values():
+    #     for k, v in state.items():
+    #         if isinstance(v, torch.Tensor):
+    #             state[k] = v.to(device)
+    # optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     print(model)
 
     data_loader = get_data_loader("")
-    EPOCHS = 100
+    EPOCHS = 200
     # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     print("Starting training")
@@ -281,7 +296,7 @@ if __name__ == "__main__":
     torch.save({
         "model_state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
-    }, "weights/ckpt350e.pth")
+    }, "weights/ckpt200eCos.pth")
     print("Model saved!")
 
     save_steps = [0, 50, 100, 150, 200, 250]
