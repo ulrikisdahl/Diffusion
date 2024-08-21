@@ -176,10 +176,7 @@ class ConvBlock(nn.Module):
         return x
 
 
-class BasicUNet(nn.Module):
-    """
-        Classical U-Net with only positional embeddings
-    """
+class AttUNet(nn.Module):
     def __init__(self):
         super().__init__()
 

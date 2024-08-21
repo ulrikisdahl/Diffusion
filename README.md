@@ -1,1 +1,1 @@
-# Diffusion-project
+# Diffusion playground

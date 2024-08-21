@@ -50,6 +50,6 @@ def get_data_loader(path: str):
     """
         Returns the a torch data loader with the images in range [-1, 1]
     """
-    data = load_transformed_dataset()
+    data = load_transformed_dataset() #example dataset
     dataloader = DataLoader(data, batch_size=BATCH_SIZE, shuffle=True, drop_last=True)
     return dataloader
