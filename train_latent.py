@@ -1,14 +1,16 @@
-from load_data.load_data import get_inpaint_loader, show_tensor_image
+"""
+    Note: Dataset paths must be set manually in configs/data_config.yaml in order to run this script
+"""
+
+from load_data.load_inpainting_data import get_inpaint_loader, show_tensor_image
 import torch
-from models.inpaint_diffusion import InpaintDiffusion
 from tqdm import tqdm
 from statistics import mean
-from diffusion.diffusion import inpaint_loss_function, n_steps, reverse_inpaint_sampling
-from models.text_transformer import BERTTokenizer
 from diffusers import AutoencoderKL
 import matplotlib.pyplot as plt
 from transformers import CLIPTokenizer, CLIPTextModel
 import torch.nn.functional as F
+from models.cross_attention_unet import InpaintDiffusion
 
 #params
 BATCH_SIZE=16
@@ -18,6 +20,7 @@ EPOCHS = 45 #10
 max_len = 16
 
 model = InpaintDiffusion(text_seq_len=max_len)
+
 #tokenizer = BERTTokenizer(max_length=20)
 clip_model_name = "openai/clip-vit-base-patch32"
 # processor = CLIPProcessor.from_pretrained(clip_model_name)
@@ -40,9 +43,9 @@ data_loader = get_inpaint_loader(batch_size=BATCH_SIZE)
 model.to(device)
 vae.to(device)
 clip_model.to(device)
-checkpoint = torch.load("weights/inpainting/clip_latent_inpaint_50e.pth")
-model.load_state_dict(checkpoint["model_state_dict"])
-optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+# checkpoint = torch.load("weights/inpainting/clip_latent_inpaint_50e.pth")
+# model.load_state_dict(checkpoint["model_state_dict"])
+# optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
 
 

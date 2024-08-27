@@ -1,0 +1,30 @@
+data:
+  target: load_data.main.DataModuleFromConfig
+  params:
+    batch_size: 8
+    num_workers: 4
+    
+    train:
+      target: load_data.gqa_inpaint.GQAInpaintTrain
+      params:
+        images_root: "/home/ulrik/datasets/inpainting/images"
+        images_inpainted_root: "/home/ulrik/datasets/inpainting/images_inpainted"
+        masks_root: "/home/ulrik/datasets/inpainting/masks" 
+        scene_json_path: "/home/ulrik/datasets/inpainting/train_scenes.json" 
+        max_relations: 1
+        simplify_augment: True
+        instruction_type: "remove"
+        size: 256
+        irrelevant_text_prob: 0.2
+
+lightning:
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 5000
+        max_images: 8
+        increase_log_steps: True
+
+  trainer:
+    benchmark: True

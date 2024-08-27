@@ -6,7 +6,6 @@ from load_data.load_data import get_data_loader, show_tensor_image, BATCH_SIZE
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from statistics import mean
-from models.attention_unet import AttUNet
 from models.gated_attention_unet import AttentionUNet
 from models.simple_unet import BasicUNet
 
